@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SITA — Smart Instruction & Task Authoring Assistant</title>
+  <meta name="description" content="Analyze vague instructions and get structured, actionable clarity scores powered by spaCy NLP." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ================================================================
+       DESIGN TOKENS
+    ================================================================ */
+    :root {
+      --bg:           #0d0f1a;
+      --bg-card:      #141626;
+      --bg-card-2:    #1a1d30;
+      --border:       #2a2d45;
+      --border-glow:  #4f46e5;
+
+      --accent:       #6366f1;
+      --accent-light: #818cf8;
+      --accent-2:     #22d3ee;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red:   #ef4444;
+
+      --text-primary:   #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted:     #475569;
+
+      --radius-sm:  6px;
+      --radius-md:  12px;
+      --radius-lg:  20px;
+
+      --shadow-card: 0 4px 32px rgba(0,0,0,0.5);
+      --shadow-glow: 0 0 40px rgba(99,102,241,0.18);
+    }
+
+    /* ================================================================
+       RESET & BASE
+    ================================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ================================================================
+       ANIMATED BACKGROUND
+    ================================================================ */
+    .bg-orbs {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.12;
+      animation: float 18s ease-in-out infinite alternate;
+    }
+    .orb-1 { width: 500px; height: 500px; background: #6366f1; top: -150px; left: -100px; }
+    .orb-2 { width: 400px; height: 400px; background: #22d3ee; bottom: -100px; right: -80px; animation-delay: -6s; }
+    .orb-3 { width: 300px; height: 300px; background: #a855f7; top: 40%; left: 55%; animation-delay: -12s; }
+
+    @keyframes float {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(40px, 30px) scale(1.08); }
+    }
+
+    /* ================================================================
+       LAYOUT
+    ================================================================ */
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ================================================================
+       HEADER
+    ================================================================ */
+    .header {
+      text-align: center;
+      margin-bottom: 52px;
+    }
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(99,102,241,0.12);
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: 100px;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-light);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .header-badge .dot {
+      width: 6px; height: 6px;
+      background: var(--accent-light);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #e2e8f0 0%, #818cf8 50%, #22d3ee 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 14px;
+    }
+    .header-sub {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.65;
+    }
+
+    /* ================================================================
+       TABS
+    ================================================================ */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 5px;
+      margin-bottom: 28px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 18px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(99,102,241,0.45);
+    }
+
+    /* Panel visibility */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ================================================================
+       CARD
+    ================================================================ */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: var(--shadow-card);
+    }
+    .card + .card { margin-top: 20px; }
+
+    /* ================================================================
+       INPUT AREA
+    ================================================================ */
+    .input-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    textarea {
+      width: 100%;
+      background: var(--bg-card-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      padding: 14px 16px;
+      resize: vertical;
+      min-height: 100px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+    }
+    textarea::placeholder { color: var(--text-muted); }
+
+    .char-counter {
+      text-align: right;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* ================================================================
+       EXAMPLE CHIPS
+    ================================================================ */
+    .examples-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .chip {
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 100px;
+      padding: 5px 12px;
+      font-size: 12.5px;
+      color: var(--accent-light);
+      cursor: pointer;
+      transition: all 0.18s;
+      user-select: none;
+    }
+    .chip:hover {
+      background: rgba(99,102,241,0.18);
+      border-color: rgba(99,102,241,0.5);
+      transform: translateY(-1px);
+    }
+
+    /* ================================================================
+       ANALYZE BUTTON
+    ================================================================ */
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      border: none;
+      border-radius: var(--radius-md);
+      color: #fff;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+      margin-top: 16px;
+    }
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover::before { opacity: 1; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    /* ================================================================
+       SPINNER
+    ================================================================ */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .spinner.active { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ================================================================
+       RESULT CARD
+    ================================================================ */
+    .results-wrapper {
+      animation: slide-up 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Clarity Gauge */
+    .score-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .score-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+    .score-gauge {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex: 1;
+      min-width: 200px;
+    }
+    .score-bar-track {
+      flex: 1;
+      height: 10px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 100px;
+      transition: width 0.9s cubic-bezier(0.22,1,0.36,1);
+      background: linear-gradient(90deg, var(--accent-red), var(--accent-amber), var(--accent-green));
+    }
+    .score-number {
+      font-size: 22px;
+      font-weight: 800;
+      min-width: 48px;
+      text-align: right;
+    }
+    .score-number.red   { color: var(--accent-red); }
+    .score-number.amber { color: var(--accent-amber); }
+    .score-number.green { color: var(--accent-green); }
+
+    /* Section title inside result */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* Extracted chips grid */
+    .extracted-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .extracted-item {
+      background: var(--bg-card-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+    }
+    .extracted-key {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+    .extracted-val {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .extracted-val.null { color: var(--text-muted); font-style: italic; }
+
+    /* Issues list */
+    .issues-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .issue-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(239,68,68,0.07);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 14px;
+      color: #fca5a5;
+    }
+    .issue-icon { font-size: 15px; flex-shrink: 0; }
+    .no-issues {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(16,185,129,0.07);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 14px;
+      color: #6ee7b7;
+      margin-bottom: 20px;
+    }
+
+    /* Suggestion box */
+    .suggestion-box {
+      background: rgba(99,102,241,0.07);
+      border: 1px solid rgba(99,102,241,0.25);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+    }
+    .suggestion-text {
+      font-family: 'Fira Code', monospace;
+      font-size: 14.5px;
+      color: var(--accent-light);
+      line-height: 1.5;
+    }
+    .copy-btn {
+      margin-top: 10px;
+      background: none;
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: var(--radius-sm);
+      color: var(--accent-light);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover { background: rgba(99,102,241,0.15); }
+
+    /* ================================================================
+       BATCH PANEL
+    ================================================================ */
+    .batch-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .batch-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .batch-row input {
+      flex: 1;
+      background: var(--bg-card-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .batch-row input:focus { border-color: var(--accent); }
+    .batch-row input::placeholder { color: var(--text-muted); }
+    .btn-icon {
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .btn-icon:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+    .btn-add {
+      display: flex; align-items: center; gap: 8px;
+      background: none;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 16px;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.15s;
+      margin-bottom: 16px;
+    }
+    .btn-add:hover { border-color: var(--accent); color: var(--accent-light); }
+
+    /* Batch results table */
+    .batch-results { display: flex; flex-direction: column; gap: 12px; }
+    .batch-result-item {
+      background: var(--bg-card-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      transition: border-color 0.2s;
+    }
+    .batch-result-item:hover { border-color: rgba(99,102,241,0.3); }
+    .batch-result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      gap: 12px;
+    }
+    .batch-result-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      flex: 1;
+      font-style: italic;
+    }
+    .clarity-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+    .clarity-badge.red   { background: rgba(239,68,68,0.12);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.25);  }
+    .clarity-badge.amber { background: rgba(245,158,11,0.12); color: #fcd34d; border: 1px solid rgba(245,158,11,0.25); }
+    .clarity-badge.green { background: rgba(16,185,129,0.12); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.25); }
+
+    .batch-suggestion {
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+      color: var(--accent-light);
+      background: rgba(99,102,241,0.06);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+    }
+    .batch-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .batch-summary span { color: var(--text-secondary); }
+    .batch-summary strong { color: var(--text-primary); }
+
+    /* ================================================================
+       ERROR STATE
+    ================================================================ */
+    .error-box {
+      background: rgba(239,68,68,0.07);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      color: #fca5a5;
+      font-size: 14px;
+      margin-top: 16px;
+      display: none;
+    }
+    .error-box.visible { display: block; animation: slide-up 0.25s ease; }
+
+    /* ================================================================
+       FOOTER
+    ================================================================ */
+    .footer {
+      text-align: center;
+      margin-top: 60px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .footer a { color: var(--accent-light); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    /* ================================================================
+       RESPONSIVE
+    ================================================================ */
+    @media (max-width: 600px) {
+      .page { padding: 28px 16px 60px; }
+      h1 { font-size: 2rem; }
+      .score-row { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient background -->
+  <div class="bg-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <main class="page">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-badge">
+        <span class="dot"></span>
+        spaCy · FastAPI · Rule-Based NLP
+      </div>
+      <h1>SITA — Smart Instruction & Task Authoring Assistant</h1>
+      <p class="header-sub">
+        Paste a vague instruction below and instantly see what's missing,
+        what's ambiguous, and get a clearer, actionable version — all powered
+        by rule-based NLP.
+      </p>
+    </header>
+
+    <!-- Tabs -->
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" id="tab-single" role="tab" onclick="switchTab('single')">
+        ✦ Single Analyze
+      </button>
+      <button class="tab-btn" id="tab-batch" role="tab" onclick="switchTab('batch')">
+        ⊞ Batch Analyze
+      </button>
+    </div>
+
+    <!-- ============================================================
+         SINGLE PANEL
+    ============================================================ -->
+    <div class="panel active" id="panel-single">
+      <div class="card">
+        <label class="input-label" for="input-text">Instruction to analyze</label>
+
+        <!-- Example chips -->
+        <div class="examples-label">Try an example:</div>
+        <div class="chips" id="example-chips">
+          <span class="chip" onclick="setExample('Send the report soon')">Send the report soon</span>
+          <span class="chip" onclick="setExample('Please schedule the meeting ASAP')">Please schedule the meeting ASAP</span>
+          <span class="chip" onclick="setExample('Finish the task quickly')">Finish the task quickly</span>
+          <span class="chip" onclick="setExample('Email John the budget by Friday')">Email John the budget by Friday</span>
+          <span class="chip" onclick="setExample('Update the dashboard urgently')">Update the dashboard urgently</span>
+        </div>
+
+        <textarea
+          id="input-text"
+          placeholder="e.g. Send the report to Alice by tomorrow..."
+          maxlength="500"
+          oninput="updateCounter()"
+          onkeydown="handleEnter(event)"
+        ></textarea>
+        <div class="char-counter"><span id="char-count">0</span> / 500</div>
+
+        <button class="btn-primary" id="analyze-btn" onclick="analyzeSingle()">
+          <span class="spinner" id="spinner-single"></span>
+          <span id="analyze-btn-text">✦ Analyze Clarity</span>
+        </button>
+
+        <div class="error-box" id="error-single"></div>
+      </div>
+
+      <!-- Results -->
+      <div id="results-single"></div>
+    </div>
+
+    <!-- ============================================================
+         BATCH PANEL
+    ============================================================ -->
+    <div class="panel" id="panel-batch">
+      <div class="card">
+        <label class="input-label">Instructions to analyze (up to 20)</label>
+
+        <div class="batch-list" id="batch-list">
+          <div class="batch-row">
+            <input type="text" placeholder="Instruction 1…" class="batch-input" />
+            <button class="btn-icon" onclick="removeRow(this)" title="Remove">✕</button>
+          </div>
+          <div class="batch-row">
+            <input type="text" placeholder="Instruction 2…" class="batch-input" />
+            <button class="btn-icon" onclick="removeRow(this)" title="Remove">✕</button>
+          </div>
+        </div>
+
+        <button class="btn-add" onclick="addRow()">+ Add another instruction</button>
+
+        <button class="btn-primary" id="batch-btn" onclick="analyzeBatch()">
+          <span class="spinner" id="spinner-batch"></span>
+          <span id="batch-btn-text">⊞ Analyze Batch</span>
+        </button>
+
+        <div class="error-box" id="error-batch"></div>
+      </div>
+
+      <div id="results-batch"></div>
+    </div>
+
+    <footer class="footer">
+      Backend: <a href="/docs" target="_blank">Swagger UI (/docs)</a> &nbsp;·&nbsp;
+      <a href="/redoc" target="_blank">ReDoc (/redoc)</a>
+    </footer>
+  </main>
+
+  <script>
+    const API = '';  // Same origin — backend serves this page
+
+    /* ================================================================
+       TAB SWITCHING
+    ================================================================ */
+    function switchTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      document.getElementById('panel-' + name).classList.add('active');
+    }
+
+    /* ================================================================
+       CHAR COUNTER
+    ================================================================ */
+    function updateCounter() {
+      const len = document.getElementById('input-text').value.length;
+      document.getElementById('char-count').textContent = len;
+    }
+
+    /* ================================================================
+       EXAMPLE CHIPS
+    ================================================================ */
+    function setExample(text) {
+      document.getElementById('input-text').value = text;
+      updateCounter();
+      document.getElementById('input-text').focus();
+    }
+
+    /* ================================================================
+       ENTER KEY SHORTCUT (single)
+    ================================================================ */
+    function handleEnter(e) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) analyzeSingle();
+    }
+
+    /* ================================================================
+       CLARITY SCORE HELPERS
+    ================================================================ */
+    function scoreClass(score) {
+      if (score >= 70) return 'green';
+      if (score >= 40) return 'amber';
+      return 'red';
+    }
+
+    function scoreLabel(score) {
+      if (score >= 70) return '✓ Clear';
+      if (score >= 40) return '~ Moderate';
+      return '✗ Vague';
+    }
+
+    /* ================================================================
+       SINGLE ANALYZE
+    ================================================================ */
+    async function analyzeSingle() {
+      const text = document.getElementById('input-text').value.trim();
+      const errBox = document.getElementById('error-single');
+      errBox.classList.remove('visible');
+
+      if (!text) {
+        showError(errBox, 'Please enter an instruction to analyze.');
+        return;
+      }
+
+      setLoading('single', true);
+      document.getElementById('results-single').innerHTML = '';
+
+      try {
+        const res = await fetch(API + '/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Server error');
+        }
+        const data = await res.json();
+        renderSingleResult(data);
+      } catch (err) {
+        showError(errBox, '⚠ ' + err.message);
+      } finally {
+        setLoading('single', false);
+      }
+    }
+
+    function renderSingleResult(d) {
+      const cls = scoreClass(d.clarity_score);
+      const issuesHtml = d.issues.length
+        ? '<ul class="issues-list">' + d.issues.map(i =>
+            `<li class="issue-item"><span class="issue-icon">⚠</span>${escHtml(i)}</li>`
+          ).join('') + '</ul>'
+        : '<div class="no-issues">✓ No issues detected — instruction is clear!</div>';
+
+      const ex = d.extracted;
+      const formatVal = v => v
+        ? `<span class="extracted-val">${escHtml(v)}</span>`
+        : `<span class="extracted-val null">—</span>`;
+
+      document.getElementById('results-single').innerHTML = `
+        <div class="results-wrapper">
+          <div class="card" style="margin-top:20px">
+
+            <!-- Score gauge -->
+            <div class="score-row">
+              <span class="score-label">Clarity Score</span>
+              <div class="score-gauge">
+                <div class="score-bar-track">
+                  <div class="score-bar-fill" id="score-fill" style="width:0%"></div>
+                </div>
+                <span class="score-number ${cls}" id="score-num">0</span>
+              </div>
+            </div>
+
+            <!-- Extracted info -->
+            <div class="section-title">Extracted Information</div>
+            <div class="extracted-grid">
+              <div class="extracted-item">
+                <div class="extracted-key">Action</div>${formatVal(ex.action)}
+              </div>
+              <div class="extracted-item">
+                <div class="extracted-key">Person</div>${formatVal(ex.person)}
+              </div>
+              <div class="extracted-item">
+                <div class="extracted-key">Deadline</div>${formatVal(ex.deadline)}
+              </div>
+            </div>
+
+            <!-- Issues -->
+            <div class="section-title">Issues Detected</div>
+            ${issuesHtml}
+
+            <!-- Suggestion -->
+            <div class="section-title">Suggested Rewrite</div>
+            <div class="suggestion-box">
+              <div class="suggestion-text" id="suggestion-text">${escHtml(d.suggestion)}</div>
+              <button class="copy-btn" onclick="copyText('${escHtml(d.suggestion).replace(/'/g,"\\'")}')">
+                Copy suggestion
+              </button>
+            </div>
+
+          </div>
+        </div>`;
+
+      // Animate score
+      animateScore(d.clarity_score, cls);
+    }
+
+    function animateScore(target, cls) {
+      const fill = document.getElementById('score-fill');
+      const num  = document.getElementById('score-num');
+      let current = 0;
+      const step = target / 40;
+      const interval = setInterval(() => {
+        current = Math.min(current + step, target);
+        fill.style.width = current + '%';
+        num.textContent = Math.round(current);
+        if (current >= target) clearInterval(interval);
+      }, 18);
+    }
+
+    /* ================================================================
+       BATCH ANALYZE
+    ================================================================ */
+    function addRow() {
+      const list = document.getElementById('batch-list');
+      if (list.children.length >= 20) return;
+      const idx = list.children.length + 1;
+      const row = document.createElement('div');
+      row.className = 'batch-row';
+      row.innerHTML = `
+        <input type="text" placeholder="Instruction ${idx}…" class="batch-input" />
+        <button class="btn-icon" onclick="removeRow(this)" title="Remove">✕</button>`;
+      list.appendChild(row);
+    }
+
+    function removeRow(btn) {
+      const list = document.getElementById('batch-list');
+      if (list.children.length <= 1) return;
+      btn.closest('.batch-row').remove();
+    }
+
+    async function analyzeBatch() {
+      const inputs = [...document.querySelectorAll('.batch-input')];
+      const texts = inputs.map(i => i.value.trim()).filter(Boolean);
+      const errBox = document.getElementById('error-batch');
+      errBox.classList.remove('visible');
+
+      if (texts.length === 0) {
+        showError(errBox, 'Please enter at least one instruction.');
+        return;
+      }
+
+      setLoading('batch', true);
+      document.getElementById('results-batch').innerHTML = '';
+
+      try {
+        const res = await fetch(API + '/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texts })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Server error');
+        }
+        const data = await res.json();
+        renderBatchResults(data);
+      } catch (err) {
+        showError(errBox, '⚠ ' + err.message);
+      } finally {
+        setLoading('batch', false);
+      }
+    }
+
+    function renderBatchResults(data) {
+      const avgCls = scoreClass(data.avg_clarity);
+
+      let html = `
+        <div class="results-wrapper">
+          <div class="batch-summary">
+            <span>Analyzed <strong>${data.total}</strong> instruction${data.total !== 1 ? 's' : ''}</span>
+            <span>Avg Clarity: <strong class="${avgCls}-text" style="color: var(--accent-${avgCls === 'green' ? 'green' : avgCls === 'amber' ? 'amber' : 'red'})">${data.avg_clarity} / 100</strong></span>
+          </div>
+          <div class="batch-results">`;
+
+      data.results.forEach((r, i) => {
+        const cls = scoreClass(r.clarity_score);
+        html += `
+          <div class="batch-result-item">
+            <div class="batch-result-header">
+              <span class="batch-result-text">"${escHtml(r.original_text)}"</span>
+              <span class="clarity-badge ${cls}">${scoreLabel(r.clarity_score)} · ${r.clarity_score}/100</span>
+            </div>
+            ${r.issues.length ? `<div style="font-size:13px;color:#fca5a5;margin-bottom:8px;">⚠ ${r.issues.join(' · ')}</div>` : '<div style="font-size:13px;color:#6ee7b7;margin-bottom:8px;">✓ No issues</div>'}
+            <div class="batch-suggestion">${escHtml(r.suggestion)}</div>
+          </div>`;
+      });
+
+      html += `</div></div>`;
+      document.getElementById('results-batch').innerHTML = html;
+    }
+
+    /* ================================================================
+       UTILITIES
+    ================================================================ */
+    function setLoading(which, on) {
+      const btn = document.getElementById(which === 'single' ? 'analyze-btn' : 'batch-btn');
+      const spinner = document.getElementById('spinner-' + which);
+      const btnText = document.getElementById(which === 'single' ? 'analyze-btn-text' : 'batch-btn-text');
+      btn.disabled = on;
+      spinner.classList.toggle('active', on);
+      btnText.textContent = on
+        ? 'Analyzing…'
+        : (which === 'single' ? '✦ Analyze Clarity' : '⊞ Analyze Batch');
+    }
+
+    function showError(box, msg) {
+      box.textContent = msg;
+      box.classList.add('visible');
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        const btn = document.querySelector('.copy-btn');
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => (btn.textContent = orig), 1500);
+      } catch {}
+    }
+  </script>
+</body>
+</html>
