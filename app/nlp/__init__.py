@@ -13,15 +13,16 @@ Exports the top-level pipeline function `analyze_text` which orchestrates:
 from app.nlp.domain_dict  import expand_abbreviations, detect_vague_words
 from app.nlp.extractor    import extract_info
 from app.nlp.suggestion   import generate_suggestion
-from app.nlp.task_classifier import classify_task
-from app.nlp.content_generator import generate_content
+from app.nlp.content_suggester import generate_content_suggestion
 
 
-def analyze_text(text: str, user_type: str = "Professional") -> dict:
+def analyze_text(text: str) -> dict:
     """
     Full NLP pipeline: raw text → structured analysis result.
 
-    Returns a dict matching the AnalyzeResponse schema.
+    Returns a dict matching the AnalyzeResponse schema:
+      original_text, interpreted_text, abbreviations_found,
+      extracted, issues, ambiguous_words, suggestion, clarity_score
     """
     # ── Step 1: Expand abbreviations ─────────────────────────────────────────
     interpreted_text, abbreviations_found = expand_abbreviations(text)
@@ -49,11 +50,10 @@ def analyze_text(text: str, user_type: str = "Professional") -> dict:
         issues.append(f"Ambiguous term: '{vague}' — please specify a concrete timeframe.")
 
     # ── Step 5: Content Suggestion ───────────────────────────────────────────
-    task_type = classify_task(text)
-    generated_content = generate_content(task_type, text, user_type)
+    content_suggestions = generate_content_suggestion(text)
 
     # ── Step 6: Generate suggestion ───────────────────────────────────────────
-    suggestion = generate_suggestion(extracted, text, abbreviations_found, None)
+    suggestion = generate_suggestion(extracted, text, abbreviations_found, content_suggestions)
 
     # ── Step 7: Clarity score ─────────────────────────────────────────────────
     # Base: action +40, person +30, deadline +30  → max 100
@@ -79,8 +79,7 @@ def analyze_text(text: str, user_type: str = "Professional") -> dict:
         "entities":            extracted["entities"],
         "issues":              issues,
         "ambiguous_words":     all_vague,
+        "suggestion":          suggestion,
         "clarity_score":       score,
-        "task_type":           task_type,
-        "structured_instruction": suggestion,
-        "generated_content":   generated_content,
+        "content_suggestions": content_suggestions,
     }

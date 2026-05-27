@@ -1,4 +1,4 @@
-# SITA — Smart Instruction & Task Authoring Assistant
+# NLP Clarity Assistant
 
 > Transform vague instructions into clear, structured, actionable communication — powered by spaCy, FastAPI, and React.
 

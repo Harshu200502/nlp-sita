@@ -1,5 +1,5 @@
 /**
- * App.jsx — SITA — Smart Instruction & Task Authoring Assistant — Main Application Shell
+ * App.jsx — NLP Clarity Assistant — Main Application Shell
  *
  * Layout:
  *   ┌─ Ambient background (orbs)
@@ -11,16 +11,13 @@
  */
 import { useState, useRef, useCallback } from "react";
 import { Toaster } from "react-hot-toast";
-import { Sparkles, Layers, Clock, Send, RotateCcw, Zap, LogOut, User, BookOpen } from "lucide-react";
-
-import Login from "./Login";
+import { Sparkles, Layers, Clock, Send, RotateCcw, Zap } from "lucide-react";
 
 import { useAnalyze } from "./hooks/useAnalyze";
 import ResultCard   from "./components/ResultCard";
 import BatchPanel   from "./components/BatchPanel";
 import HistoryPanel from "./components/HistoryPanel";
-import ResearchPanel from "./components/ResearchPanel";
-
+import SmartPromptBuilder from "./components/SmartPromptBuilder";
 
 // ─── Example instructions ──────────────────────────────────────────────────
 const EXAMPLES = [
@@ -36,15 +33,14 @@ const EXAMPLES = [
 
 // ─── Tab definition ────────────────────────────────────────────────────────
 const TABS = [
-  { id: "single",   label: "Generate Content", icon: Sparkles },
-  { id: "batch",    label: "Batch Process",  icon: Layers },
-  { id: "research", label: "Research Writing", icon: BookOpen },
-  { id: "history",  label: "History",        icon: Clock },
+  { id: "single",  label: "Single Analyze", icon: Sparkles },
+  { id: "batch",   label: "Batch Analyze",  icon: Layers },
+  { id: "history", label: "History",        icon: Clock },
+  { id: "prompt",  label: "Smart Prompt Builder", icon: Zap },
 ];
 
-function MainApp({ auth, handleLogout }) {
+export default function App() {
   const [activeTab, setActiveTab] = useState("single");
-  const [userType, setUserType] = useState("Professional");
   const [inputText, setInputText] = useState("");
   const [realtimeOn, setRealtimeOn] = useState(true);
   const textareaRef = useRef(null);
@@ -55,26 +51,26 @@ function MainApp({ auth, handleLogout }) {
   const handleChange = useCallback((e) => {
     const val = e.target.value;
     setInputText(val);
-    if (realtimeOn) analyzeDebounced(val, userType);
-  }, [realtimeOn, analyzeDebounced, userType]);
+    if (realtimeOn) analyzeDebounced(val);
+  }, [realtimeOn, analyzeDebounced]);
 
   // ── Example click ────────────────────────────────────────────────────────
   const setExample = (text) => {
     setInputText(text);
     textareaRef.current?.focus();
-    if (realtimeOn) analyzeDebounced(text, userType);
+    if (realtimeOn) analyzeDebounced(text);
   };
 
   // ── Restore from history ─────────────────────────────────────────────────
   const restoreFromHistory = (text) => {
     setInputText(text);
     setActiveTab("single");
-    analyze(text, userType);
+    analyze(text);
     textareaRef.current?.focus();
   };
 
   // ── Submit ───────────────────────────────────────────────────────────────
-  const handleAnalyze = () => analyze(inputText, userType);
+  const handleAnalyze = () => analyze(inputText);
 
   return (
     <div className="min-h-screen bg-bg text-pastel-text font-sans overflow-x-hidden">
@@ -93,47 +89,17 @@ function MainApp({ auth, handleLogout }) {
       <div className="relative z-10 max-w-3xl mx-auto px-4 py-12 pb-24">
 
         {/* ── Header ── */}
-        <header className="relative text-center mb-10">
-          <div className="absolute right-0 top-0 flex flex-col items-end gap-2">
-            <div className="flex items-center gap-3 bg-bg-card border border-border shadow-sm rounded-xl px-3 py-1.5">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-black capitalize">
-                <User size={12} /> {auth.username}
-              </span>
-              <div className="w-px h-3 bg-border"></div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-bold transition"
-              >
-                <LogOut size={12} /> Logout
-              </button>
-            </div>
-            
-            <div className="flex items-center gap-2 bg-white border border-border shadow-sm rounded-xl px-2 py-1">
-              <label className="text-[10px] font-bold uppercase text-black">Mode:</label>
-              <select 
-                value={userType} 
-                onChange={(e) => setUserType(e.target.value)}
-                className="bg-transparent text-xs font-bold text-black focus:outline-none cursor-pointer"
-              >
-                <option value="Professional">Professional</option>
-                <option value="Student">Student</option>
-                <option value="Researcher">Researcher</option>
-              </select>
-            </div>
-          </div>
-          <div className="inline-flex items-center gap-2 bg-pastel-beige/30 border border-pastel-beige rounded-full px-4 py-1.5 text-xs font-semibold text-black uppercase tracking-wider mb-5 mt-8 md:mt-0">
+        <header className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 bg-pastel-beige/30 border border-pastel-beige rounded-full px-4 py-1.5 text-xs font-semibold text-pastel-text uppercase tracking-wider mb-5">
             <span className="w-1.5 h-1.5 rounded-full bg-pastel-pink animate-[pulseDot_2s_ease-in-out_infinite]" />
-            SITA — Content Generation Engine
+            spaCy · FastAPI · Rule-Based NLP
           </div>
-          <h1 className="text-4xl sm:text-5xl font-black font-serif tracking-tight leading-tight mb-4 text-black">
-            SITA
+          <h1 className="text-4xl sm:text-5xl font-black font-serif tracking-tight leading-tight mb-4 text-pastel-text">
+            NLP Clarity Assistant
           </h1>
-          <p className="text-black max-w-lg mx-auto text-sm leading-loose font-bold">
-            Smart Instruction & Task Authoring Assistant
-          </p>
-          <p className="text-black max-w-lg mx-auto text-sm leading-loose">
-            Directly generate structured content for your tasks.
-            Clear, actionable, and domain-aware.
+          <p className="text-pastel-subtext max-w-lg mx-auto text-sm leading-loose">
+            Paste a vague instruction — get instant clarity. Abbreviations expanded,
+            ambiguities flagged, and a structured rewrite generated automatically.
           </p>
         </header>
 
@@ -242,11 +208,6 @@ function MainApp({ auth, handleLogout }) {
         {activeTab === "batch" && <BatchPanel />}
 
         {/* ════════════════════════════════════════════════════════
-            RESEARCH WRITING PANEL
-        ════════════════════════════════════════════════════════ */}
-        {activeTab === "research" && <ResearchPanel />}
-
-        {/* ════════════════════════════════════════════════════════
             HISTORY PANEL
         ════════════════════════════════════════════════════════ */}
         {activeTab === "history" && (
@@ -255,35 +216,20 @@ function MainApp({ auth, handleLogout }) {
           </div>
         )}
 
+        {/* ════════════════════════════════════════════════════════
+            SMART PROMPT BUILDER
+        ════════════════════════════════════════════════════════ */}
+        {activeTab === "prompt" && <SmartPromptBuilder />}
+
         {/* ── Footer ── */}
         <footer className="text-center mt-14 text-xs text-pastel-subtext space-x-3">
           <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer" className="hover:text-pastel-pink transition">Swagger UI</a>
           <span>·</span>
           <a href="http://localhost:8000/redoc" target="_blank" rel="noreferrer" className="hover:text-pastel-pink transition">ReDoc</a>
           <span>·</span>
-          <span>SITA v2.0</span>
+          <span>NLP Clarity Assistant v2.0</span>
         </footer>
       </div>
     </div>
   );
-}
-
-export default function App() {
-  const [auth, setAuth] = useState(() => {
-    const token = localStorage.getItem("token");
-    const username = localStorage.getItem("username");
-    return token ? { access_token: token, username } : null;
-  });
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    setAuth(null);
-  };
-
-  if (!auth) {
-    return <Login setAuth={setAuth} />;
-  }
-
-  return <MainApp auth={auth} handleLogout={handleLogout} />;
 }

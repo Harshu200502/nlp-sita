@@ -5,15 +5,15 @@
 import { useState, useRef, useCallback } from "react";
 import { analyzeText, analyzeBatch } from "../api";
 
-const getHistoryKey = () => `nlp_history_${localStorage.getItem("username") || "default"}`;
+const HISTORY_KEY = "nlp_history";
 const MAX_HISTORY = 20;
 
 function loadHistory() {
-  try { return JSON.parse(localStorage.getItem(getHistoryKey()) || "[]"); }
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
   catch { return []; }
 }
 function saveHistory(items) {
-  localStorage.setItem(getHistoryKey(), JSON.stringify(items.slice(0, MAX_HISTORY)));
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, MAX_HISTORY)));
 }
 
 export function useAnalyze() {
@@ -25,12 +25,12 @@ export function useAnalyze() {
   const debounceRef = useRef(null);
 
   // ── Single analysis ──────────────────────────────────────────────────────
-  const analyze = useCallback(async (text, userType = "Professional") => {
+  const analyze = useCallback(async (text) => {
     if (!text.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await analyzeText(text, userType);
+      const data = await analyzeText(text);
       setResult(data);
       // Prepend to history
       setHistory(prev => {
@@ -46,10 +46,10 @@ export function useAnalyze() {
   }, []);
 
   // ── Debounced real-time analysis (500ms) ─────────────────────────────────
-  const analyzeDebounced = useCallback((text, userType = "Professional") => {
+  const analyzeDebounced = useCallback((text) => {
     clearTimeout(debounceRef.current);
     if (text.trim().length < 5) return;
-    debounceRef.current = setTimeout(() => analyze(text, userType), 500);
+    debounceRef.current = setTimeout(() => analyze(text), 500);
   }, [analyze]);
 
   const clearResult = () => { setResult(null); setError(null); };

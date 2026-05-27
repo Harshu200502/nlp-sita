@@ -30,7 +30,7 @@ export default function HighlightedText({ text, ambiguousWords = [], abbreviatio
   });
 
   if (spans.length === 0) {
-    return <span className="font-mono text-sm text-gray-900">{text}</span>;
+    return <span className="font-mono text-sm text-gray-200">{text}</span>;
   }
 
   // Sort by start, remove overlapping
@@ -47,13 +47,13 @@ export default function HighlightedText({ text, ambiguousWords = [], abbreviatio
   let cursor = 0;
   merged.forEach((span, i) => {
     if (cursor < span.start) {
-      parts.push(<span key={`t-${i}`} className="text-gray-900">{text.slice(cursor, span.start)}</span>);
+      parts.push(<span key={`t-${i}`} className="text-gray-200">{text.slice(cursor, span.start)}</span>);
     }
     const content = text.slice(span.start, span.end);
     if (span.type === "vague") {
       parts.push(
         <span key={`v-${i}`} title={`Ambiguous: be more specific`}
-          className="tag-VAGUE rounded px-1 cursor-help">
+          className="tag-VAGUE rounded px-1 cursor-help border-b-2 border-dashed border-red-400">
           {content}
         </span>
       );
@@ -68,7 +68,7 @@ export default function HighlightedText({ text, ambiguousWords = [], abbreviatio
     cursor = span.end;
   });
   if (cursor < text.length) {
-    parts.push(<span key="tail" className="text-gray-900">{text.slice(cursor)}</span>);
+    parts.push(<span key="tail" className="text-gray-200">{text.slice(cursor)}</span>);
   }
 
   return (

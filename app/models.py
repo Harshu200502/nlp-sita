@@ -30,10 +30,6 @@ class AnalyzeRequest(BaseModel):
         description="The instruction or sentence to analyze for clarity.",
         examples=["Send report EOD ASAP"]
     )
-    user_type: str = Field(
-        "Professional",
-        description="User context for generation (Student, Professional, Researcher)"
-    )
 
 
 class BatchAnalyzeRequest(BaseModel):
@@ -84,11 +80,12 @@ class EntitySpan(BaseModel):
     end:   int  # character offset end
 
 
-class GeneratedContent(BaseModel):
+class ContentSuggestion(BaseModel):
     """Context-aware content suggestions inferred from task keywords."""
-    type: str         = Field(..., description="Type of content generated.")
+    type: str         = Field(..., description="Inferred task type (e.g. Report, Code task, Meeting).")
     title: str        = Field(..., description="Suggested title for the content.")
-    sections: List[str] = Field(..., description="Generated structured body/sections.")
+    description: str  = Field(..., description="Short explanation of the content.")
+    sections: List[str] = Field(..., description="Suggested structural sections or steps.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -103,28 +100,25 @@ class AnalyzeResponse(BaseModel):
         original_text       : The exact input text echoed back.
         interpreted_text    : Text after abbreviation expansion.
         abbreviations_found : Dict of {abbreviation: expansion} pairs detected.
-        task_type           : The dynamically classified task type (e.g., Email, Report).
         extracted           : Structured breakdown (action, person, deadline, tech_terms).
         pos_tags            : Per-token POS tags for frontend highlighting.
         entities            : Named entity spans.
         issues              : List of detected problems.
         ambiguous_words     : List of vague / ambiguous terms found.
+        suggestion          : An improved, clearer version of the original instruction.
         clarity_score       : Integer 0–100 (higher = clearer).
-        structured_instruction : An improved, clearer version of the original instruction.
-        generated_content   : Fully generated content structure (sections, title).
     """
     original_text:       str                    = Field(..., description="The original input text.")
     interpreted_text:    str                    = Field(..., description="Text after abbreviation expansion.")
     abbreviations_found: Dict[str, str]         = Field(default_factory=dict, description="Abbreviations detected and their expansions.")
-    task_type:           str                    = Field(..., description="The classified task type.")
     extracted:           ExtractedInfo          = Field(..., description="NLP-extracted structured info.")
     pos_tags:            List[POSTag]           = Field(default_factory=list, description="Per-token POS tags.")
     entities:            List[EntitySpan]       = Field(default_factory=list, description="Named entity spans.")
     issues:              List[str]              = Field(..., description="Detected ambiguities and missing fields.")
     ambiguous_words:     List[str]              = Field(default_factory=list, description="Vague terms detected.")
+    suggestion:          str                    = Field(..., description="Improved, clearer version of the instruction.")
     clarity_score:       int                    = Field(..., ge=0, le=100, description="Clarity score 0–100.")
-    structured_instruction: str                 = Field(..., description="Improved, clearer version of the instruction.")
-    generated_content:   GeneratedContent       = Field(..., description="Intelligently generated content.")
+    content_suggestions: ContentSuggestion      = Field(..., description="Intelligently inferred content suggestions.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -167,23 +161,3 @@ class PromptBuilderResponse(BaseModel):
     detailed_prompt: str
     ai_ready_prompt: str
     content_structure: List[str]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# RESEARCH WRITING ASSISTANT MODELS
-# ─────────────────────────────────────────────────────────────────────────────
-
-class ImproveWritingRequest(BaseModel):
-    """
-    Input schema for POST /improve-writing.
-    """
-    text: str = Field(..., description="The research text to improve and correct.")
-
-class ImproveWritingResponse(BaseModel):
-    """
-    Output schema for POST /improve-writing.
-    """
-    original_text: str
-    corrected_text: str
-    suggestions: List[str]
-    improved_version: str

@@ -1,4 +1,4 @@
-# SITA — Python Dependencies
+# NLP Clarity Assistant — Python Dependencies
 # ============================================
 # Install with: pip install -r requirements.txt
 

@@ -137,7 +137,7 @@ export default function SmartPromptBuilder() {
 
             <div className="bg-bg border border-border rounded-xl p-4 relative group">
               <p className="text-[10px] font-bold uppercase tracking-widest text-pastel-subtext mb-2 flex items-center gap-1.5">
-                <List size={14} /> 4. Ready-to-Use Prompt (For External Tools)
+                <List size={14} /> 4. AI-Ready Prompt (For ChatGPT)
               </p>
               <p className="text-sm bg-gray-50 p-3 rounded-lg text-gray-800 font-mono text-xs whitespace-pre-wrap selection:bg-pastel-pink selection:text-white border border-gray-200">
                 {result.ai_ready_prompt}
