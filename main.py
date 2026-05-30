@@ -42,21 +42,15 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",   # Vite dev server
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://localhost:5176",
-        "http://localhost:5177",
-        "http://localhost:3000",   # CRA dev server
-        "http://localhost:8000",   # Same-origin (static HTML fallback)
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:5175",
-        "http://127.0.0.1:5176",
-        "http://127.0.0.1:5177",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8000",
-    ],
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8000",
+    "https://nlp-sita.vercel.app",
+    "https://nlp-sita-j3ngsvtrx-harshitha-m-s-proj.vercel.app",
+    os.environ.get("FRONTEND_URL", "http://localhost:5173"),
+],
     allow_credentials = True,
     allow_methods     = ["*"],
     allow_headers     = ["*"],
